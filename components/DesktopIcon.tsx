@@ -28,8 +28,9 @@ const DesktopIcon: React.FC<DesktopIconProps> = ({ node, mode, scale, onContextM
      mode === 'card' ? node.thumbnails?.card : 
      node.thumbnails?.gallery) || node.thumbnail;
 
-  const baseWidth = mode === 'icon' ? 80 : mode === 'card' ? 110 : 130;
-  const baseHeight = mode === 'icon' ? 80 : mode === 'card' ? 180 : 250;
+  // 这里的尺寸需与 OSContext 的 baseW/baseH 匹配
+  const baseWidth = mode === 'icon' ? 52 : mode === 'card' ? 90 : 110;
+  const baseHeight = mode === 'icon' ? 52 : mode === 'card' ? 140 : 200;
 
   useEffect(() => {
     if (isHovering && mode !== 'icon') {
@@ -51,10 +52,10 @@ const DesktopIcon: React.FC<DesktopIconProps> = ({ node, mode, scale, onContextM
 
   return (
     <div 
-      className={`relative flex flex-col items-center group cursor-pointer transition-shadow perspective-1000`}
+      className={`relative flex flex-col items-center group cursor-pointer perspective-1000 p-0.5`}
       style={{
-        width: (baseWidth + 30) * scale,
-        height: (baseHeight + 50) * scale,
+        width: (baseWidth + 12) * scale,
+        height: (baseHeight + 28) * scale,
       }}
       onContextMenu={onContextMenu}
       onMouseEnter={() => setIsHovering(true)}
@@ -73,72 +74,67 @@ const DesktopIcon: React.FC<DesktopIconProps> = ({ node, mode, scale, onContextM
         {/* FRONT SIDE */}
         <div 
           className={`
-            absolute inset-0 backface-hidden shadow-xl border border-white/10 overflow-hidden bg-white/5 backdrop-blur-sm 
-            flex items-center justify-center rounded-2xl transition-all
-            ${isSelected ? 'ring-2 ring-blue-500/50' : ''}
+            absolute inset-0 backface-hidden shadow-lg border border-white/10 overflow-hidden bg-white/5 backdrop-blur-sm 
+            flex items-center justify-center rounded-xl transition-all
+            ${isSelected ? 'ring-2 ring-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : ''}
           `}
         >
           {currentThumbnail ? (
             <img src={currentThumbnail} className="w-full h-full object-cover" alt={node.label} />
           ) : (
-            <Icon size={Math.max(16, (mode === 'icon' ? 32 : 44) * scale)} className={`${config.color || 'text-white'}`} />
+            <Icon size={Math.max(14, (mode === 'icon' ? 24 : 36) * scale)} className={`${config.color || 'text-white'}`} />
           )}
           
           {node.url && (
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <ExternalLink className="text-white" size={Math.max(12, 20 * scale)} />
+              <ExternalLink className="text-white" size={Math.max(10, 16 * scale)} />
             </div>
           )}
 
           {node.isPrivate && (
-            <div className="absolute top-2 right-2 p-1 bg-black/40 backdrop-blur-md rounded-lg">
-              <Lock size={12} className="text-yellow-400" />
+            <div className="absolute top-1 right-1 p-0.5 bg-black/40 backdrop-blur-md rounded-md">
+              <Lock size={8} className="text-yellow-400" />
             </div>
           )}
         </div>
 
         {/* BACK SIDE (News) */}
         <div 
-          className="absolute inset-0 backface-hidden rotate-y-180 bg-[#0f172a]/95 backdrop-blur-2xl border border-white/20 rounded-2xl flex flex-col p-3 shadow-2xl overflow-hidden"
+          className="absolute inset-0 backface-hidden rotate-y-180 bg-[#0f172a]/95 backdrop-blur-2xl border border-white/20 rounded-xl flex flex-col p-2 shadow-2xl overflow-hidden"
         >
-          <div className="flex items-center gap-2 mb-2 border-b border-white/10 pb-2">
-            <Newspaper size={14} className="text-blue-400" />
-            <span className="text-[10px] font-bold text-white/80 uppercase tracking-tighter">Hot Topics</span>
+          <div className="flex items-center gap-1 mb-1 border-b border-white/10 pb-1">
+            <Newspaper size={10} className="text-blue-400" />
+            <span className="text-[8px] font-bold text-white/80 uppercase tracking-tight">AI Feed</span>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1">
             {!node.news ? (
-              <div className="h-full flex flex-col items-center justify-center gap-2 text-gray-500">
-                <Loader2 size={16} className="animate-spin text-blue-400" />
-                <span className="text-[9px]">Analyzing Feed...</span>
+              <div className="h-full flex flex-col items-center justify-center gap-1 text-gray-500">
+                <Loader2 size={12} className="animate-spin text-blue-400" />
+                <span className="text-[7px]">Analysing...</span>
               </div>
             ) : (
               node.news.map((n, i) => (
                 <div 
                   key={i} 
-                  className="p-2 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group/news"
+                  className="p-1 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group/news"
                   onClick={(e) => { e.stopPropagation(); window.open(n.url, '_blank'); }}
                 >
-                  <h4 className="text-[10px] font-bold text-white leading-tight mb-1 group-hover/news:text-blue-400 transition-colors line-clamp-2">{n.title}</h4>
-                  <p className="text-[8px] text-gray-400 line-clamp-2">{n.snippet}</p>
+                  <h4 className="text-[8px] font-bold text-white leading-tight mb-0.5 group-hover/news:text-blue-400 transition-colors line-clamp-1">{n.title}</h4>
+                  <p className="text-[6px] text-gray-400 line-clamp-2 leading-tight">{n.snippet}</p>
                 </div>
               ))
             )}
-          </div>
-          
-          <div className="mt-2 pt-2 border-t border-white/10 flex justify-between items-center">
-            <span className="text-[8px] text-gray-500 italic">via Gemini AI</span>
-            <ChevronRight size={10} className="text-gray-500" />
           </div>
         </div>
       </motion.div>
 
       <div 
-        className={`px-2 py-0.5 rounded-md max-w-full truncate font-medium mt-3 transition-opacity
-          ${isSelected ? 'bg-blue-500 text-white' : 'text-white/90'}
+        className={`px-1 py-0.5 rounded-md max-w-full truncate font-medium mt-1.5 transition-opacity text-center
+          ${isSelected ? 'bg-blue-500 text-white' : 'text-white/90 drop-shadow-lg'}
           ${isFlipped ? 'opacity-0' : 'opacity-100'}
         `}
-        style={{ fontSize: Math.max(8, 11 * scale) }}
+        style={{ fontSize: Math.max(7, 9 * scale) }}
       >
         {node.label}
       </div>
