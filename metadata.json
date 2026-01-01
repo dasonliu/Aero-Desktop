@@ -1,0 +1,5 @@
+{
+  "name": "Aero Desktop",
+  "description": "A simulated web desktop interface featuring immersive entrance animations where icons fly in from off-screen coordinates.",
+  "requestFramePermissions": []
+}
