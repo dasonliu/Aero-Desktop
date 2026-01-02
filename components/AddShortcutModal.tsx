@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X, Globe, Sparkles, Image as ImageIcon, Loader2, Wand2, CheckCircle2, User, Car, Plane, Cat, Layout, Palette, Upload, Lock, ShieldCheck } from 'lucide-react';
 import { FileNode } from '../types';
-import { GoogleGenAI } from "@google/genai";
 
 interface AddShortcutModalProps {
   isOpen: boolean;
@@ -79,16 +78,17 @@ const AddShortcutModal: React.FC<AddShortcutModalProps> = ({ isOpen, onClose, on
     if (!label && !url) return;
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       let currentLabel = label;
       
       if (!currentLabel) {
         setGenPhase('analyzing');
-        const nameRes = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: `Brand name from ${url}. Return ONLY the name.`,
+        const res = await fetch('/api/analyze-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
         });
-        currentLabel = nameRes.text?.trim() || 'App';
+        const data = await res.json();
+        currentLabel = data.name || 'App';
         setLabel(currentLabel);
       }
 
@@ -102,13 +102,15 @@ const AddShortcutModal: React.FC<AddShortcutModalProps> = ({ isOpen, onClose, on
       const newThumbs: any = {};
       for (const spec of specs) {
         setGenPhase(spec.ph as any);
-        const res = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
-          contents: { parts: [{ text: spec.p }] },
-          config: { imageConfig: { aspectRatio: spec.ar as any } }
+        const res = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: spec.p, aspectRatio: spec.ar }),
         });
-        const raw = res.candidates?.[0]?.content?.parts.find(p => p.inlineData)?.inlineData?.data;
-        if (raw) newThumbs[spec.k] = await resizeImage(`data:image/png;base64,${raw}`, spec.w, spec.h);
+        const data = await res.json();
+        if (data.data) {
+          newThumbs[spec.k] = await resizeImage(`data:image/png;base64,${data.data}`, spec.w, spec.h);
+        }
       }
       setThumbnails(prev => ({ ...prev, ...newThumbs }));
     } catch (e) { console.error(e); } finally { setIsGenerating(false); setGenPhase('idle'); }

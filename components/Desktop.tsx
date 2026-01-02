@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DesktopIcon from './DesktopIcon';
+import ParticleClock from './ParticleClock';
 import { useOS } from '../context/OSContext';
 import { FileNode } from '../types';
-import { Plus, Trash, Edit2, RotateCcw, LayoutGrid, CreditCard, Image as ImageIcon, Grid3X3, Palette, X, Check } from 'lucide-react';
+import { Plus, Trash, Edit2, RotateCcw, LayoutGrid, CreditCard, Image as ImageIcon, Grid3X3, Palette, X, Check, Clock, Settings } from 'lucide-react';
 import AddShortcutModal from './AddShortcutModal';
 
 const PRESET_WALLPAPERS = [
@@ -112,7 +113,8 @@ const Desktop: React.FC = () => {
   const { 
     desktopItems, layoutMode, setLayoutMode, iconScale, setIconScale,
     currentPage, setCurrentPage, totalPages, deleteItem, updateItem, 
-    updatePosition, createItem, resetDesktop, reorganizeGrid 
+    updatePosition, createItem, resetDesktop, reorganizeGrid,
+    showClock, setShowClock
   } = useOS();
   
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; targetId?: string } | null>(null);
@@ -121,7 +123,6 @@ const Desktop: React.FC = () => {
   const [editingNode, setEditingNode] = useState<FileNode | null>(null);
   const [isInitialEntry, setIsInitialEntry] = useState(true);
   
-  // 跨页拖动状态
   const [dragEdge, setDragEdge] = useState<'left' | 'right' | null>(null);
   const edgeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const desktopRef = useRef<HTMLDivElement>(null);
@@ -157,7 +158,6 @@ const Desktop: React.FC = () => {
     setContextMenu({ x: e.clientX, y: e.clientY, targetId });
   };
 
-  // 跨页逻辑：感应边缘翻页
   const handleDrag = (id: string, info: any) => {
     const screenWidth = window.innerWidth;
     const dragX = info.point.x;
@@ -182,16 +182,14 @@ const Desktop: React.FC = () => {
     if (edgeTimerRef.current) clearTimeout(edgeTimerRef.current);
     edgeTimerRef.current = setTimeout(() => {
       if (edge === 'left' && currentPage > 0) {
-        // 先更新图标属性，保证它在 visibleItems 中不消失
         updateItem(id, { page: currentPage - 1 });
         setCurrentPage(currentPage - 1);
       } else if (edge === 'right') {
-        // 更新图标属性
         updateItem(id, { page: currentPage + 1 });
         setCurrentPage(currentPage + 1);
       }
       clearEdgeTimer();
-    }, 600); // 停留600ms后翻页
+    }, 600);
   };
 
   const clearEdgeTimer = () => {
@@ -239,7 +237,6 @@ const Desktop: React.FC = () => {
         onContextMenu={(e) => handleContextMenu(e)}
         onWheel={handleWheel}
       >
-        {/* 边缘翻页指示器 */}
         <AnimatePresence>
           {dragEdge && (
             <motion.div 
@@ -253,6 +250,10 @@ const Desktop: React.FC = () => {
                </div>
             </motion.div>
           )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showClock && <ParticleClock />}
         </AnimatePresence>
 
         <AnimatePresence mode="popLayout">
@@ -324,7 +325,7 @@ const Desktop: React.FC = () => {
             exit={{ opacity: 0, scale: 0.9, filter: 'blur(10px)' }}
             className="fixed w-64 bg-[#080d1a]/95 backdrop-blur-3xl border border-white/10 rounded-[24px] shadow-[0_20px_50px_rgba(0,0,0,0.6)] py-2 z-[100] text-[12px] text-gray-200"
             style={{ 
-              top: Math.min(contextMenu.y, window.innerHeight - 450), 
+              top: Math.min(contextMenu.y, window.innerHeight - 480), 
               left: Math.min(contextMenu.x, window.innerWidth - 280) 
             }}
           >
@@ -340,6 +341,21 @@ const Desktop: React.FC = () => {
               </>
             ) : (
               <>
+                <div className="px-5 py-2 text-[9px] text-gray-500 font-black uppercase tracking-[0.15em] mb-0.5 opacity-60">General</div>
+                <button onClick={() => setShowClock(!showClock)} className={`w-full text-left px-5 py-2.5 flex items-center justify-between transition-all hover:bg-white/10`}>
+                  <div className="flex items-center gap-3">
+                    <Clock size={16} className="text-blue-400" /> 
+                    <span>Particle Clock</span>
+                  </div>
+                  {showClock && <Check size={14} className="text-emerald-400" />}
+                </button>
+                <button onClick={() => setIsWallpaperModalOpen(true)} className="w-full text-left px-5 py-2.5 hover:bg-white/10 flex items-center gap-3 transition-all">
+                  <Settings size={16} className="text-slate-400" />
+                  <span>System Settings</span>
+                </button>
+
+                <div className="h-px bg-white/5 my-2 mx-3" />
+
                 <div className="px-5 py-2 text-[9px] text-gray-500 font-black uppercase tracking-[0.15em] mb-0.5 opacity-60">Display Style</div>
                 <button onClick={() => setLayoutMode('icon')} className={`w-full text-left px-5 py-2.5 flex items-center gap-3 transition-all ${layoutMode === 'icon' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-white/10'}`}>
                   <LayoutGrid size={16} /> Grid

@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { FileNode, LayoutMode } from '../types';
-import { GoogleGenAI, Type } from "@google/genai";
 import { WALLPAPER_URL as DEFAULT_WALLPAPER } from '../constants';
 
 const INITIAL_DESKTOP_ITEMS: FileNode[] = [
@@ -34,10 +33,11 @@ const INITIAL_DESKTOP_ITEMS: FileNode[] = [
   { id: '11', appId: 'weblink', label: 'Wikipedia', type: 'shortcut', path: '/Desktop', url: 'https://wikipedia.org', x: 0, y: 0 }
 ];
 
-const STORAGE_KEY = 'aero_desktop_v18';
-const LAYOUT_KEY = 'aero_layout_v18';
-const SCALE_KEY = 'aero_scale_v18';
-const WALLPAPER_KEY = 'aero_wallpaper_v18';
+const STORAGE_KEY = 'aero_desktop_v20';
+const LAYOUT_KEY = 'aero_layout_v20';
+const SCALE_KEY = 'aero_scale_v20';
+const WALLPAPER_KEY = 'aero_wallpaper_v20';
+const CLOCK_KEY = 'aero_clock_v20';
 
 interface OSContextType {
   desktopItems: FileNode[];
@@ -46,6 +46,8 @@ interface OSContextType {
   wallpaper: string;
   currentPage: number;
   totalPages: number;
+  showClock: boolean;
+  setShowClock: (show: boolean) => void;
   setCurrentPage: (page: number) => void;
   setIconScale: (scale: number) => void;
   setLayoutMode: (mode: LayoutMode) => void;
@@ -63,6 +65,7 @@ const OSContext = createContext<OSContextType | undefined>(undefined);
 
 export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [desktopItems, setDesktopItems] = useState<FileNode[]>(() => {
+    if (typeof window === 'undefined') return INITIAL_DESKTOP_ITEMS;
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) return JSON.parse(saved);
@@ -70,17 +73,25 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     return INITIAL_DESKTOP_ITEMS;
   });
 
-  const [layoutMode, setLayoutModeState] = useState<LayoutMode>(() => 
-    (localStorage.getItem(LAYOUT_KEY) as LayoutMode) || 'icon'
-  );
+  const [layoutMode, setLayoutModeState] = useState<LayoutMode>(() => {
+    if (typeof window === 'undefined') return 'icon';
+    return (localStorage.getItem(LAYOUT_KEY) as LayoutMode) || 'icon';
+  });
 
   const [iconScale, setIconScaleState] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1.0;
     const saved = localStorage.getItem(SCALE_KEY);
     return saved ? parseFloat(saved) : 1.0;
   });
 
   const [wallpaper, setWallpaperState] = useState<string>(() => {
+    if (typeof window === 'undefined') return DEFAULT_WALLPAPER;
     return localStorage.getItem(WALLPAPER_KEY) || DEFAULT_WALLPAPER;
+  });
+
+  const [showClock, setShowClockState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(CLOCK_KEY) === 'true';
   });
 
   const [currentPage, setCurrentPage] = useState(0);
@@ -98,54 +109,61 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     localStorage.setItem(WALLPAPER_KEY, wallpaper);
   }, [wallpaper]);
 
+  useEffect(() => {
+    localStorage.setItem(CLOCK_KEY, showClock.toString());
+  }, [showClock]);
+
+  const setShowClock = (show: boolean) => setShowClockState(show);
+
   const fetchNewsForItem = async (id: string) => {
     const item = desktopItems.find(i => i.id === id);
     if (!item || item.news) return;
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Recent news for ${item.label}. JSON array with title, snippet, url.`,
-        config: { responseMimeType: "application/json" }
+      const response = await fetch('/api/news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: item.label }),
       });
-      const news = JSON.parse(response.text);
-      updateItem(id, { news });
+      const news = await response.json();
+      if (!news.error) {
+        updateItem(id, { news });
+      }
     } catch (e) { console.error(e); }
   };
 
   const reorganizeGrid = (mode: LayoutMode = layoutMode, scale: number = iconScale) => {
-    const isMobile = window.innerWidth < 640;
-    
-    // 极致压缩边距
-    const marginX = isMobile ? 12 : 40;
-    const marginY = isMobile ? 16 : 40;
+    const isMobile = window.innerWidth < 1024;
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const marginX = isMobile ? (isLandscape ? 24 : 12) : 40;
+    const marginY = isMobile ? (isLandscape ? 12 : 16) : 40;
     const taskbarHeight = isMobile ? 50 : 70;
     
-    // 压缩基础尺寸以提升密度
     let baseW, baseH;
     if (mode === 'icon') {
-        baseW = isMobile ? 64 : 100; // 手机端从76压缩到64
-        baseH = isMobile ? 80 : 110; // 手机端从90压缩到80
+        baseW = isMobile ? (isLandscape ? 80 : 64) : 100;
+        baseH = isMobile ? (isLandscape ? 90 : 80) : 110;
     } else if (mode === 'card') {
-        baseW = isMobile ? 120 : 180;
-        baseH = isMobile ? 200 : 260;
+        baseW = (isMobile && isLandscape) ? Math.floor(window.innerWidth / 5) : (isMobile ? 120 : 180);
+        baseH = (isMobile && isLandscape) ? 140 : (isMobile ? 200 : 260);
     } else { // gallery
-        baseW = isMobile ? 150 : 210;
-        baseH = isMobile ? 260 : 320;
+        baseW = (isMobile && isLandscape) ? Math.floor(window.innerWidth / 5.5) : (isMobile ? 150 : 210);
+        baseH = (isMobile && isLandscape) ? 180 : (isMobile ? 260 : 320);
     }
     
-    // 更加紧凑的间距系数
-    const spacingFactor = isMobile ? 1.01 : (1.03 + (scale * 0.05)); 
+    const spacingFactor = isMobile ? 1.02 : (1.03 + (scale * 0.05)); 
     const cellW = baseW * scale * spacingFactor;
     const cellH = baseH * scale * spacingFactor;
-    
     const availableW = window.innerWidth - marginX * 2;
     const availableH = window.innerHeight - marginY * 2 - taskbarHeight;
-    
-    const cols = Math.max(1, Math.floor(availableW / cellW));
-    const rows = Math.max(1, Math.floor(availableH / cellH));
-    const itemsPerPage = cols * rows;
+    let cols = Math.max(1, Math.floor(availableW / cellW));
+    let rows = Math.max(1, Math.floor(availableH / cellH));
 
+    if (isMobile && isLandscape && (mode === 'card' || mode === 'gallery')) {
+      cols = 4;
+      rows = 1;
+    }
+
+    const itemsPerPage = cols * rows;
     setTotalPages(Math.max(1, Math.ceil(desktopItems.length / itemsPerPage)));
 
     setDesktopItems(prev => prev.map((item, index) => {
@@ -153,14 +171,14 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       const indexInPage = index % itemsPerPage;
       const col = indexInPage % cols;
       const row = Math.floor(indexInPage / cols);
-
-      // 视觉微调：确保图标在容器内均匀分布
-      const horizontalOffset = (availableW - (cols * cellW)) / 2;
-
+      const usedWidth = cols * cellW;
+      const horizontalOffset = Math.max(0, (availableW - usedWidth) / 2);
+      const usedHeight = rows * cellH;
+      const verticalOffset = Math.max(0, (availableH - usedHeight) / 2);
       return {
         ...item,
         x: marginX + horizontalOffset + col * cellW,
-        y: marginY + row * cellH,
+        y: marginY + verticalOffset + row * cellH,
         page: pageIndex
       };
     }));
@@ -174,7 +192,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   }, [layoutMode, iconScale]);
 
   const setIconScale = (scale: number) => {
-    setIconScaleState(Math.min(Math.max(scale, 0.4), 3.0)); // 调低最大缩放限制
+    setIconScaleState(Math.min(Math.max(scale, 0.4), 3.0));
   };
   
   const setLayoutMode = (mode: LayoutMode) => {
@@ -193,6 +211,7 @@ export const OSProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     <OSContext.Provider value={{ 
       desktopItems, layoutMode, setLayoutMode, iconScale, setIconScale,
       wallpaper, setWallpaper, currentPage, setCurrentPage, totalPages,
+      showClock, setShowClock,
       deleteItem, createItem, updateItem, updatePosition, reorganizeGrid, resetDesktop,
       fetchNewsForItem
     }}>
