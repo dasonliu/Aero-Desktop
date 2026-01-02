@@ -124,7 +124,8 @@ const Desktop: React.FC = () => {
   const [isInitialEntry, setIsInitialEntry] = useState(true);
   
   const [dragEdge, setDragEdge] = useState<'left' | 'right' | null>(null);
-  const edgeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Using ReturnType<typeof setTimeout> instead of NodeJS.Timeout for cross-environment compatibility
+  const edgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktopRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

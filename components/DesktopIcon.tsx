@@ -18,7 +18,8 @@ const DesktopIcon: React.FC<DesktopIconProps> = ({ node, mode, scale, onContextM
   const [isSelected, setIsSelected] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Using ReturnType<typeof setTimeout> instead of NodeJS.Timeout for cross-environment compatibility
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const config = getAppConfig(node.appId);
   const Icon = config?.icon || HelpCircle;
